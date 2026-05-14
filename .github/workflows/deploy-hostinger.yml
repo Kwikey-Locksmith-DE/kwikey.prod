@@ -1,0 +1,126 @@
+name: Deploy Clean Production Artifact
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: hostinger-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout clean production repo
+        uses: actions/checkout@v4
+
+      - name: Audit clean artifact boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden_paths="$(find . -path './.git' -prune -o -path './.github' -prune -o \( -name 'src' -o -name 'scripts' -o -name 'docs' -o -name 'node_modules' -o -name '.astro' -o -name '_astro' -o -name '.env' -o -name 'package.json' -o -name 'package-lock.json' -o -name 'README.md' -o -name 'astro.config.mjs' -o -name 'tsconfig.json' -o -name '*.map' -o -name '*config.example.php' -o -name '*astro*' \) -print)"
+          if [ -n "$forbidden_paths" ]; then
+            echo "$forbidden_paths"
+            exit 1
+          fi
+          if git ls-files | grep -E '(^|/)api/config\.php$|(^|/)\.env$|(^|/)package\.json$|(^|/)src/|(^|/)scripts/|(^|/)docs/|(^|/)node_modules/' ; then
+            echo "Forbidden dev or secret file is tracked."
+            exit 1
+          fi
+          if grep -R -n -E 'src/|scripts/|docs/|node_modules|package\.json|astro\.config|config\.example|brands/originals|BaseLayout\.astro|InlineBookingForm\.astro|GoogleMap\.astro|_astro/' . --exclude-dir=.git --exclude-dir=.github ; then
+            echo "Forbidden development reference found in deployable files."
+            exit 1
+          fi
+          test -f index.html
+          test -f .htaccess
+          test -f api/book.php
+          test -f api/contact.php
+          test -f api/utils.php
+
+      - name: Setup SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${{ secrets.SSH_PORT }}"
+          if [ -z "$PORT" ]; then PORT="65002"; fi
+          ssh-keyscan -p "$PORT" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy artifact to Hostinger
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT="${{ secrets.SSH_PORT }}"
+          if [ -z "$PORT" ]; then PORT="65002"; fi
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'api/config.php' \
+            --exclude 'api/.rate_limit/' \
+            --exclude 'api/.thank_you_tokens/' \
+            --exclude 'api/.lead_events/' \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT" \
+            ./ \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.SSH_REMOTE_PATH }}"
+
+      - name: Provision API config and runtime directories
+        shell: bash
+        env:
+          SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
+          RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          def php_string(value):
+              return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+          required = ["SMTP2GO_API_KEY", "RECAPTCHA_SECRET_KEY"]
+          missing = [name for name in required if not os.environ.get(name, "").strip()]
+          if missing:
+              raise SystemExit("Missing required secret(s): " + ", ".join(missing))
+
+          body = """<?php
+          return [
+              'smtp2go_api_key'       => {smtp},
+              'recaptcha_secret_key'  => {recaptcha},
+              'recaptcha_min_score'   => 0.5,
+              'sender_email'          => 'noreply@kwikeylocksmith.com',
+              'sender_name'           => 'Kwikey Locksmith',
+              'notification_emails'   => [
+                  'kwikeylocksmithoffice@gmail.com',
+                  'yaron@gettmarketing.com',
+                  'sandrahmarketing@gmail.com',
+              ],
+              'allowed_origin'        => 'https://www.kwikeylocksmith.com',
+              'trust_proxy_headers'   => false,
+              'lead_event_logging'    => true,
+          ];
+          """.format(
+              smtp=php_string(os.environ["SMTP2GO_API_KEY"]),
+              recaptcha=php_string(os.environ["RECAPTCHA_SECRET_KEY"]),
+          )
+          Path("/tmp/kwikey-api-config.php").write_text(body)
+          os.chmod("/tmp/kwikey-api-config.php", 0o600)
+          PY
+
+          PORT="${{ secrets.SSH_PORT }}"
+          if [ -z "$PORT" ]; then PORT="65002"; fi
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "mkdir -p '${{ secrets.SSH_REMOTE_PATH }}/api' '${{ secrets.SSH_REMOTE_PATH }}/api/.rate_limit' '${{ secrets.SSH_REMOTE_PATH }}/api/.thank_you_tokens' '${{ secrets.SSH_REMOTE_PATH }}/api/.lead_events' && chmod 750 '${{ secrets.SSH_REMOTE_PATH }}/api/.rate_limit' '${{ secrets.SSH_REMOTE_PATH }}/api/.thank_you_tokens' '${{ secrets.SSH_REMOTE_PATH }}/api/.lead_events'"
+          scp -i ~/.ssh/deploy_key -P "$PORT" /tmp/kwikey-api-config.php "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.SSH_REMOTE_PATH }}/api/config.php"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "chmod 600 '${{ secrets.SSH_REMOTE_PATH }}/api/config.php'"
+          rm -f /tmp/kwikey-api-config.php
+
+      - name: Cleanup SSH key
+        if: always()
+        shell: bash
+        run: rm -f ~/.ssh/deploy_key /tmp/kwikey-api-config.php
