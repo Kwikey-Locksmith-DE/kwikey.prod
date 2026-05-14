@@ -1,0 +1,7 @@
+# Kwikey Locksmith - Security Contact
+# https://securitytxt.org/ (RFC 9116)
+
+Contact: mailto:kwikeylocksmithoffice@gmail.com
+Preferred-Languages: en
+Canonical: https://www.kwikeylocksmith.com/.well-known/security.txt
+Expires: 2027-05-10T00:00:00.000Z

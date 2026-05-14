@@ -1,0 +1,59 @@
+# Kwikey Locksmith - robots.txt
+# https://www.kwikeylocksmith.com
+
+# ============================================
+# Default: Allow all crawlers
+# ============================================
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /thank-you/
+
+# ============================================
+# Sitemaps
+# ============================================
+Sitemap: https://www.kwikeylocksmith.com/sitemap-index.xml
+
+# ============================================
+# Google AI & Search (Explicitly allow)
+# ============================================
+User-agent: Googlebot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# ============================================
+# Bing & Microsoft (Explicitly allow)
+# ============================================
+User-agent: Bingbot
+Allow: /
+
+User-agent: msnbot
+Allow: /
+
+# ============================================
+# AI Assistants & LLMs (Explicitly allow)
+# ============================================
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# ============================================
+# Host (Yandex canonical domain)
+# ============================================
+Host: www.kwikeylocksmith.com
