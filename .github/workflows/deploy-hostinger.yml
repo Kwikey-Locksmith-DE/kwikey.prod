@@ -17,6 +17,43 @@ jobs:
       - name: Checkout clean production repo
         uses: actions/checkout@v4
 
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            SSH_PRIVATE_KEY
+            SSH_HOST
+            SSH_USER
+            SSH_REMOTE_PATH
+            SMTP2GO_API_KEY
+            RECAPTCHA_SECRET_KEY
+          )
+          missing=()
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required GitHub secret(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_REMOTE_PATH: ${{ secrets.SSH_REMOTE_PATH }}
+          SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
+          RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
+
+      - name: Install deployment tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rsync
+
       - name: Audit clean artifact boundary
         shell: bash
         run: |
