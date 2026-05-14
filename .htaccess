@@ -22,6 +22,10 @@ DirectoryIndex index.php index.html
   # Ensure index.html is the entry point
   RewriteRule ^index\.html$ - [L]
 
+  # Expose static utility pages at their clean trailing-slash routes.
+  RewriteRule ^404/?$ /404.html [L]
+  RewriteRule ^500/?$ /500.html [L]
+
   # Thank-you is server-gated through /thank-you/index.php.
   RewriteRule ^thank-you/index\.html$ /thank-you/ [R=302,L,NE]
 
