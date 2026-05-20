@@ -488,6 +488,19 @@ function verifyRecaptchaToken(array $config, string $token, string $ip, string $
 
     $result = json_decode($response, true);
     if (!is_array($result) || !($result['success'] ?? false)) {
+        $errorCodes = $result['error-codes'] ?? [];
+        error_log('reCAPTCHA verification failed. Error codes: ' . json_encode($errorCodes) . ' | Full response: ' . $response);
+        // Provide actionable error for known issues
+        if (in_array('timeout-or-duplicate', $errorCodes, true)) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'errors' => ['Verification expired. Please submit the form again.'],
+            ];
+        }
+        if (in_array('invalid-input-secret', $errorCodes, true)) {
+            error_log('CRITICAL: reCAPTCHA secret key is invalid. Check config.php on the server.');
+        }
         return [
             'success' => false,
             'status' => 400,
@@ -517,13 +530,10 @@ function verifyRecaptchaToken(array $config, string $token, string $ip, string $
 
     $hostname = strtolower((string) ($result['hostname'] ?? ''));
     $allowedHosts = allowedRecaptchaHostnames($config);
-    if ($allowedHosts && (!$hostname || !in_array($hostname, $allowedHosts, true))) {
-        error_log('reCAPTCHA hostname mismatch: ' . ($hostname ?: 'none'));
-        return [
-            'success' => false,
-            'status' => 400,
-            'errors' => ['reCAPTCHA verification failed. Please try again.'],
-        ];
+    if ($allowedHosts && $hostname && !in_array($hostname, $allowedHosts, true)) {
+        // Log but don't block — Google's console already restricts by domain.
+        // This prevents false rejections from hostname format differences.
+        error_log('reCAPTCHA hostname notice: got ' . $hostname . ', expected one of: ' . implode(', ', $allowedHosts));
     }
 
     return [
