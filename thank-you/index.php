@@ -15,7 +15,7 @@ if ($token !== '' && consumeThankYouAccessToken($config, $token)) {
 if (!hasValidThankYouAccessCookie($config)) {
     header('Cache-Control: no-store, private');
     header('X-Robots-Tag: noindex, nofollow');
-    header('Location: /book/', true, 302);
+    header('Location: /estimates/', true, 302);
     exit;
 }
 
