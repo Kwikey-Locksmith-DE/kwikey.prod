@@ -5,6 +5,42 @@
  * file deepcode ignore TooPermissiveXFrameOptions: False positive.
  */
 
+// ============================================================
+// Brand Constants — Single source of truth for email templates
+// ============================================================
+define('BRAND_GREEN', '#137b14');
+define('BRAND_ORANGE', '#ff6b00');
+define('BRAND_CHARCOAL', '#070806');
+define('BRAND_GREEN_ON_DARK', '#8ed08a');
+define('BRAND_LIGHT_BG', '#ffffff');
+define('BRAND_MUTED_TEXT', '#999999');
+define('BRAND_BODY_TEXT', '#333333');
+define('BRAND_HEADING_TEXT', '#1a1a1a');
+define('BRAND_BORDER', '#e0e0e0');
+define('BRAND_FOOTER_BG', '#f7f7f7');
+
+define('COMPANY_NAME', 'Kwikey Locksmith');
+define('COMPANY_PHONE', '(302) 551-2550');
+define('COMPANY_PHONE_RAW', '+13025512550');
+define('COMPANY_WEBSITE', 'https://www.kwikeylocksmith.com');
+define('COMPANY_ADDRESS', '211 Maryland Ave, Wilmington, DE 19805');
+define('COMPANY_LOGO_URL', 'https://www.kwikeylocksmith.com/logo.png');
+define('COMPANY_EMAIL', 'kwikeylocksmithoffice@gmail.com');
+define('COMPANY_ESTIMATES_URL', 'https://www.kwikeylocksmith.com/estimates/');
+
+define('MOBILE_HOURS_DISPLAY', 'Mon\xe2\x80\x93Thu & Sun 7 AM\xe2\x80\x9310 PM, Fri 7 AM\xe2\x80\x934:30 PM');
+
+define('SOCIAL_FACEBOOK', 'https://www.facebook.com/profile.php?id=61585926614213');
+define('SOCIAL_INSTAGRAM', 'https://www.instagram.com/kwikeylocksmith');
+define('SOCIAL_TIKTOK', 'https://www.tiktok.com/@kwikeylocksmith');
+define('SOCIAL_TWITTER', 'https://x.com/kwikeylocksmth');
+define('SOCIAL_YOUTUBE', 'https://www.youtube.com/@kwikeylocksmith');
+define('SOCIAL_GOOGLE', 'https://maps.app.goo.gl/sp3bMYfiPH6bEife7');
+
+define('EMAIL_ASSETS_BASE', 'https://www.kwikeylocksmith.com/email-assets');
+
+require_once __DIR__ . '/email-templates.php';
+
 /**
  * Basic IP-based rate limiting using flat files
  */
@@ -346,33 +382,13 @@ function writeLeadEvent(array $config, array $data, string $ip, string $status, 
 }
 
 /**
- * Renders a standardized HTML email template
+ * Renders a branded HTML email template (backward-compatible signature).
+ * Delegates to the new branded notification email system.
  */
 function renderEmailTemplate(string $title, array $fields): string {
-    $rows = '';
-    foreach ($fields as $label => $value) {
-        $safeLabel = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
-        $safeValue = nl2br(htmlspecialchars($value, ENT_QUOTES, 'UTF-8'));
-        $rows .= "<tr>
-            <td style='padding: 10px; border-bottom: 1px solid #eee; width: 150px;'><strong>$safeLabel:</strong></td>
-            <td style='padding: 10px; border-bottom: 1px solid #eee;'>$safeValue</td>
-        </tr>";
-    }
-
-    return "
-    <div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;'>
-        <div style='background: #0a0a0a; color: #fff; padding: 20px; text-align: center;'>
-            <h2 style='margin: 0; font-size: 20px;'>$title</h2>
-        </div>
-        <div style='padding: 20px;'>
-            <table style='width: 100%; border-collapse: collapse;'>
-                $rows
-            </table>
-        </div>
-        <div style='background: #f9f9f9; padding: 15px; text-align: center; font-size: 11px; color: #888;'>
-            <p style='margin: 0;'>Sent from Kwikey Locksmith Website</p>
-        </div>
-    </div>";
+    $formType = (stripos($title, 'Booking') !== false) ? 'booking' : 'contact';
+    $content = renderNotificationEmail($formType, $fields);
+    return renderBaseLayout($content);
 }
 
 function isAllowedRequestHost(string $host, string $allowedHost): bool {
@@ -650,7 +666,7 @@ function sendSmtp2goEmail(array $config, $to, string $subject, string $html, str
         'sender'    => $config['sender_name'] . ' <' . $config['sender_email'] . '>',
         'subject'   => $subject,
         'html_body' => $html,
-        'text_body' => strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $html)),
+        'text_body' => generatePlainText($html),
     ];
 
     if ($replyTo) {
@@ -703,42 +719,12 @@ function sendSmtp2goEmail(array $config, $to, string $subject, string $html, str
 }
 
 /**
- * Sends an autoresponder confirmation email to the client
+ * Sends a branded autoresponder confirmation email to the client.
+ * Backward-compatible signature preserved.
  */
 function sendAutoresponder(array $config, string $clientEmail, string $clientName, string $formType = 'contact'): array {
-    $safeName = htmlspecialchars($clientName, ENT_QUOTES, 'UTF-8');
-    $firstName = htmlspecialchars(explode(' ', trim($clientName))[0], ENT_QUOTES, 'UTF-8');
-
-    $subject = "We've Received Your Request - Kwikey Locksmith";
-
-    if ($formType === 'booking') {
-        $heading = 'Booking Request Received';
-        $message = "Thank you for your booking request. A member of our team will review your details and reach out to confirm your appointment.";
-    } else {
-        $heading = 'Message Received';
-        $message = "Thank you for reaching out. We've received your message and a member of our team will get back to you shortly.";
-    }
-
-    $html = "
-    <div style='font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
-        <div style='background: #0a0a0a; padding: 30px 20px; text-align: center;'>
-            <h1 style='margin: 0; font-size: 22px; color: #8ed08a; letter-spacing: 1px;'>KWIKEY LOCKSMITH</h1>
-        </div>
-        <div style='padding: 30px 25px;'>
-            <h2 style='margin: 0 0 15px 0; font-size: 20px; color: #1a1a1a;'>$heading</h2>
-            <p style='font-size: 15px; line-height: 1.6; color: #333; margin: 0 0 20px 0;'>Hi $firstName,</p>
-            <p style='font-size: 15px; line-height: 1.6; color: #333; margin: 0 0 20px 0;'>$message</p>
-            <p style='font-size: 15px; line-height: 1.6; color: #333; margin: 0 0 25px 0;'>If you need immediate assistance, don't hesitate to call us directly:</p>
-            <div style='text-align: center; margin: 25px 0;'>
-                <a href='tel:+13025512550' style='display: inline-block; background: #0a0a0a; color: #ff6b00; text-decoration: none; padding: 14px 35px; border-radius: 6px; font-size: 18px; font-weight: bold; letter-spacing: 0.5px;'>(302) 551-2550</a>
-            </div>
-            <p style='font-size: 13px; line-height: 1.5; color: #888; margin: 25px 0 0 0;'>This is an automated confirmation. Please do not reply to this email.</p>
-        </div>
-        <div style='background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0;'>
-            <p style='margin: 0 0 5px 0; font-size: 13px; color: #666;'>Kwikey Locksmith &mdash; Insured Professional Service</p>
-            <p style='margin: 0; font-size: 12px; color: #999;'>Serving Delaware and nearby Pennsylvania service areas</p>
-        </div>
-    </div>";
-
+    $subject = "We've Received Your Request - " . COMPANY_NAME;
+    $content = renderAutoresponderEmail($formType, $clientName);
+    $html = renderBaseLayout($content);
     return sendSmtp2goEmail($config, $clientEmail, $subject, $html);
 }
