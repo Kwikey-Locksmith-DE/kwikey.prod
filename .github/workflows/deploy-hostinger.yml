@@ -94,7 +94,7 @@ jobs:
           set -euo pipefail
           PORT="${{ secrets.SSH_PORT }}"
           if [ -z "$PORT" ]; then PORT="65002"; fi
-          rsync -acz --delete \
+          rsync -acz --delete -v --stats \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude 'api/config.php' \
