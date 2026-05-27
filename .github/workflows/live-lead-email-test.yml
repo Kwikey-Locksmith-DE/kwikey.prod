@@ -16,7 +16,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           PORT="${{ secrets.SSH_PORT }}"
           if [ -z "$PORT" ]; then PORT="65002"; fi
-          ssh-keyscan -p "$PORT" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -p "$PORT" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Send live test lead notifications
         shell: bash
@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           PORT="${{ secrets.SSH_PORT }}"
           if [ -z "$PORT" ]; then PORT="65002"; fi
-          ssh -i ~/.ssh/deploy_key -p "$PORT" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" 'bash -s' <<'REMOTE'
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/deploy_key -p "$PORT" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" 'bash -s' <<'REMOTE'
           set -euo pipefail
           cd '${{ secrets.SSH_REMOTE_PATH }}'
           php <<'PHP'
