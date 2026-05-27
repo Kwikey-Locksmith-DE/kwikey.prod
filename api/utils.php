@@ -668,8 +668,10 @@ function hasValidThankYouAccessCookie(array $config): bool {
 /**
  * Sends email via SMTP2GO with retry on transient failures
  */
-function sendSmtp2goEmail(array $config, $to, string $subject, string $html, string $replyTo = ''): array {
+function sendSmtp2goEmail(array $config, $to, string $subject, string $html, string $replyTo = '', $bcc = []): array {
     $recipients = is_array($to) ? $to : [$to];
+    $bccRecipients = is_array($bcc) ? $bcc : [$bcc];
+    $bccRecipients = array_values(array_filter($bccRecipients, fn($email) => is_string($email) && trim($email) !== ''));
     $payload = [
         'api_key'   => $config['smtp2go_api_key'],
         'to'        => $recipients,
@@ -678,6 +680,10 @@ function sendSmtp2goEmail(array $config, $to, string $subject, string $html, str
         'html_body' => $html,
         'text_body' => generatePlainText($html),
     ];
+
+    if (!empty($bccRecipients)) {
+        $payload['bcc'] = $bccRecipients;
+    }
 
     if ($replyTo) {
         $payload['custom_headers'] = [['header' => 'Reply-To', 'value' => $replyTo]];

@@ -132,9 +132,10 @@ jobs:
               'sender_email'          => 'noreply@kwikeylocksmith.com',
               'sender_name'           => 'Kwikey Locksmith',
               'notification_emails'   => [
-                  'kwikeylocksmithoffice@gmail.com',
+                  'locksmithjobs01@gmail.com',
+              ],
+              'notification_bcc_emails' => [
                   'yaron@gettmarketing.com',
-                  'sandrahmarketing@gmail.com',
               ],
               'allowed_origin'        => 'https://www.kwikeylocksmith.com',
               'trust_proxy_headers'   => false,

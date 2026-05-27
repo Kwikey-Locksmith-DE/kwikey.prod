@@ -122,7 +122,7 @@ if (!$redirectTo) {
     exit;
 }
 
-$result = sendSmtp2goEmail($config, $config['notification_emails'], $subject, $html, $email);
+$result = sendSmtp2goEmail($config, $config['notification_emails'], $subject, $html, $email, $config['notification_bcc_emails'] ?? []);
 
 if ($result['success']) {
     writeLeadEvent($config, $data, $ip, 'delivered', [

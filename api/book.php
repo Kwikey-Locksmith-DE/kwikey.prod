@@ -139,7 +139,7 @@ if (!$redirectTo) {
 }
 
 $replyTo = !empty($email) ? $email : '';
-$result = sendSmtp2goEmail($config, $config['notification_emails'], $subject, $html, $replyTo);
+$result = sendSmtp2goEmail($config, $config['notification_emails'], $subject, $html, $replyTo, $config['notification_bcc_emails'] ?? []);
 
 if ($result['success']) {
     writeLeadEvent($config, $data, $ip, 'delivered', [
