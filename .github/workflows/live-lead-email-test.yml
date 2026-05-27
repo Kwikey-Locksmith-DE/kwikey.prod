@@ -1,0 +1,94 @@
+name: Live Lead Email Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  send-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${{ secrets.SSH_PORT }}"
+          if [ -z "$PORT" ]; then PORT="65002"; fi
+          ssh-keyscan -p "$PORT" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Send live test lead notifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT="${{ secrets.SSH_PORT }}"
+          if [ -z "$PORT" ]; then PORT="65002"; fi
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd '${{ secrets.SSH_REMOTE_PATH }}'
+          php <<'PHP'
+          <?php
+          $config = require __DIR__ . '/api/config.php';
+          require __DIR__ . '/api/utils.php';
+          validateConfig($config);
+
+          $stamp = gmdate('c');
+          $tests = [
+              [
+                  'subject' => 'New Contact Message from Yaron Hayo',
+                  'heading' => 'New Contact Message',
+                  'source' => 'Contact Page',
+                  'surface' => '/contact/',
+              ],
+              [
+                  'subject' => 'New Booking Request: lock-change-after-break-in - Yaron Hayo',
+                  'heading' => 'New Booking Request',
+                  'source' => 'Estimates Page',
+                  'surface' => '/estimates/',
+              ],
+              [
+                  'subject' => 'New Booking Request: lock-change-after-break-in - Yaron Hayo',
+                  'heading' => 'New Booking Request',
+                  'source' => 'Inline Service Form',
+                  'surface' => '/services/emergency/lock-change-after-break-in/',
+              ],
+          ];
+
+          foreach ($tests as $test) {
+              $html = renderEmailTemplate($test['heading'], [
+                  'Name' => 'Yaron Hayo',
+                  'Email' => 'yaron@gettmarketing.com',
+                  'Phone' => '(302) 555-0198',
+                  'Service' => 'lock-change-after-break-in',
+                  'Service Address' => '1007 N Orange St, Wilmington, DE 19801',
+                  'Message' => 'TEST SUBMISSION from Yaron Hayo via Codex after production deploy at ' . $stamp . '. Please ignore. Verifying lead notifications go to locksmithjobs01@gmail.com with BCC to yaron@gettmarketing.com.',
+                  'Consent' => 'Yes',
+                  'Lead Source' => $test['source'],
+                  'Form Surface' => $test['surface'],
+                  'City Context' => 'Wilmington, DE',
+              ]);
+
+              $result = sendSmtp2goEmail(
+                  $config,
+                  $config['notification_emails'],
+                  $test['subject'],
+                  $html,
+                  'yaron@gettmarketing.com',
+                  $config['notification_bcc_emails'] ?? []
+              );
+
+              if (!$result['success']) {
+                  fwrite(STDERR, 'Failed test for ' . $test['surface'] . ': ' . ($result['error'] ?? 'unknown') . PHP_EOL);
+                  exit(1);
+              }
+
+              echo 'sent ' . $test['surface'] . ' messageId=' . ($result['messageId'] ?? 'unknown') . PHP_EOL;
+          }
+          PHP
+          REMOTE
+
+      - name: Cleanup SSH key
+        if: always()
+        shell: bash
+        run: rm -f ~/.ssh/deploy_key
