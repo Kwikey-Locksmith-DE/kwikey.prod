@@ -27,6 +27,7 @@ define('COMPANY_ADDRESS', '211 Maryland Ave, Wilmington, DE 19805');
 define('COMPANY_LOGO_URL', 'https://www.kwikeylocksmith.com/logo.png');
 define('COMPANY_EMAIL', 'kwikeylocksmithoffice@gmail.com');
 define('COMPANY_ESTIMATES_URL', 'https://www.kwikeylocksmith.com/estimates/');
+define('SERVICE_AREA_EMAIL_FOOTER', 'Serving Delaware and nearby Pennsylvania service areas');
 
 define('MOBILE_HOURS_DISPLAY', 'Mon\xe2\x80\x93Thu & Sun 7 AM\xe2\x80\x9310 PM, Fri 7 AM\xe2\x80\x934:30 PM');
 

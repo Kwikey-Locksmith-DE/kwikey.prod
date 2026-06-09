@@ -132,7 +132,7 @@ function renderBrandFooter(): string {
       </p>
 
       <!-- Trust -->
-      <p style="margin: 16px 0 0 0; font-size: 11px; color: ' . $muted . '; background-color: ' . $footerBg . ';">Professionally Insured &bull; Quote Before Work &bull; Serving Delaware &amp; nearby PA</p>
+      <p style="margin: 16px 0 0 0; font-size: 11px; color: ' . $muted . '; background-color: ' . $footerBg . ';">Professionally Insured &bull; Quote Before Work &bull; ' . SERVICE_AREA_EMAIL_FOOTER . '</p>
     </td>
   </tr>
 </table>';
